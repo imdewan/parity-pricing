@@ -85,4 +85,3 @@ Apache License 2.0 — see [LICENSE](LICENSE) for the full text.
 ---
 
 Made by [Dewan](https://mrdsa.dev)
-# parity-pricing

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parity — App Store Connect Integration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/shared.css">
+<link rel="stylesheet" href="assets/css/appstore.css">
+</head>
+<body>
+
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+
+<div class="page">
+
+  <header>
+    <a href="index.html" class="brand">
+      <span class="brand-name"><em>P</em>arity</span>
+      <span class="brand-sep"></span>
+      <span class="brand-tag">App Store Connect</span>
+    </a>
+    <a href="index.html" class="back-link">&larr; Back to Calculator</a>
+  </header>
+
+  <div class="hero">
+    <div class="hero-eyebrow">App Store Connect Integration</div>
+    <h1 class="hero-h">Push your parity prices to the <em>App Store</em></h1>
+    <p class="hero-sub">
+      Use Apple's App Store Connect API to set per-territory pricing for your app.<br>
+      Your API credentials never leave your machine — the script runs locally.
+    </p>
+  </div>
+
+  <!-- No data state -->
+  <div id="noData" class="section" style="display:none;">
+    <div class="card no-data">
+      <p>No pricing data found. Calculate prices first.</p>
+      <a href="index.html" class="btn btn-primary">Go to Calculator</a>
+    </div>
+  </div>
+
+  <!-- Main content (shown when data exists) -->
+  <div id="mainContent" style="display:none;">
+
+    <!-- Step 1: Instructions -->
+    <div class="section">
+      <div class="section-title"><span class="step-num">1</span> Get your API credentials</div>
+      <div class="card">
+        <div class="card-title">Create an App Store Connect API Key</div>
+        <ol>
+          <li>Go to <a href="https://appstoreconnect.apple.com/access/integrations/api" target="_blank">App Store Connect &rarr; Users and Access &rarr; Integrations &rarr; App Store Connect API</a></li>
+          <li>Click the <code>+</code> button to generate a new key</li>
+          <li>Name it something like <code>Parity Pricing</code></li>
+          <li>Set the role to <strong>Admin</strong> or <strong>App Manager</strong> (needs pricing permissions)</li>
+          <li>Click <strong>Generate</strong></li>
+          <li>Download the <code>.p8</code> private key file — you can only download it once</li>
+          <li>Note your <strong>Issuer ID</strong> (shown at the top of the page) and the <strong>Key ID</strong> (shown next to your key)</li>
+        </ol>
+        <div class="warn">
+          Your .p8 private key is sensitive. Never share it, commit it to git, or paste it into untrusted websites.
+          This page processes everything locally in your browser — nothing is sent to any server.
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Credentials form -->
+    <div class="section">
+      <div class="section-title"><span class="step-num">2</span> Enter your credentials</div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="form-field">
+            <label class="form-label" for="issuerId">Issuer ID</label>
+            <input class="form-input" id="issuerId" type="text" placeholder="57246542-96fe-1a63-e053-0824d011072a" oninput="saveCreds()">
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="keyId">Key ID</label>
+            <input class="form-input" id="keyId" type="text" placeholder="2X9R4HXF34" oninput="saveCreds()">
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="appId">App ID (numeric)</label>
+            <input class="form-input" id="appId" type="text" placeholder="1234567890" oninput="saveCreds()">
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="bundleId">Bundle ID (optional, for JWT scope)</label>
+            <input class="form-input" id="bundleId" type="text" placeholder="com.example.myapp" oninput="saveCreds()">
+          </div>
+          <div class="form-field full">
+            <label class="form-label" for="p8Key">Private Key (.p8 contents)</label>
+            <textarea class="form-input" id="p8Key" placeholder="-----BEGIN PRIVATE KEY-----
+MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEH...
+-----END PRIVATE KEY-----
+
+Paste the full contents of your AuthKey_XXXXX.p8 file here, or use the upload button below." oninput="saveCreds()"></textarea>
+            <div style="margin-top:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <label class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;">
+                Upload .p8 file
+                <input type="file" id="p8File" accept=".p8,.pem,.key" style="display:none;" onchange="loadP8(this)">
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--dim);">
+                <input type="checkbox" id="rememberCreds" checked onchange="toggleRemember()" style="accent-color:var(--red);cursor:pointer;">
+                Remember credentials locally
+              </label>
+              <button class="btn btn-secondary" onclick="clearCreds()" style="padding:6px 10px;font-size:9px;">Clear saved</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Preview pricing -->
+    <div class="section">
+      <div class="section-title"><span class="step-num">3</span> Review pricing data</div>
+      <div class="card">
+        <div class="pricing-summary" id="pricingSummary"></div>
+        <div class="preview-table" id="previewTable"></div>
+        <p style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px;line-height:1.7;">
+          These prices will be used to find the closest App Store price point per territory.
+          Apple uses fixed price tiers — the script selects the nearest available tier for each market.
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 4: Generate script -->
+    <div class="section">
+      <div class="section-title"><span class="step-num">4</span> Generate &amp; run</div>
+      <div class="card">
+        <div class="card-title">Choose your method</div>
+        <p style="margin-bottom:14px;">Generate a shell script to run on your machine. The script uses your credentials to authenticate with Apple's API, finds the closest price point per territory, and sets your app's pricing.</p>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="generateScript('bash')">Generate Bash Script</button>
+          <button class="btn btn-secondary" onclick="generateScript('node')">Generate Node.js Script</button>
+        </div>
+
+        <div id="scriptOutput" style="display:none;">
+          <div class="script-box" id="scriptBox">
+            <pre id="scriptPre"></pre>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="downloadScript()">Download Script</button>
+            <button class="btn btn-secondary" onclick="copyScript()">Copy to Clipboard</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="card-title">How to run</div>
+        <ol>
+          <li>Download the generated script</li>
+          <li>Open Terminal and navigate to where you saved it</li>
+          <li>For Bash: run <code>chmod +x parity-appstore.sh && ./parity-appstore.sh</code></li>
+          <li>For Node.js: run <code>npm install jsonwebtoken && node parity-appstore.js</code></li>
+          <li>The script will authenticate, find price points, and update your app's pricing</li>
+          <li>Review the output — it shows which territories were updated and any errors</li>
+        </ol>
+        <div class="warn">
+          Always test with a sandbox/development app first. The script modifies live pricing data.
+          Review the generated script before running it.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <div>
+      <div class="foot-brand"><em>P</em>arity</div>
+      <div class="foot-note">
+        Made by <a href="https://mrdsa.dev" target="_blank">Dewan</a>
+        &nbsp;&middot;&nbsp; App Store Connect API integration<br>
+        Credentials are processed locally — nothing is sent to any server.
+      </div>
+    </div>
+    <div class="foot-right">
+      API Docs: <a href="https://developer.apple.com/documentation/appstoreconnectapi" target="_blank">App Store Connect API</a><br>
+      Not affiliated with Apple Inc.
+    </div>
+  </footer>
+
+</div>
+
+<script src="assets/js/appstore.js"></script>
+</body>
+</html>

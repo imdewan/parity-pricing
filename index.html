@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parity — Global Pricing Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/shared.css">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+
+<div class="page">
+
+  <header>
+    <div class="brand">
+      <span class="brand-name"><em>P</em>arity</span>
+      <span class="brand-sep"></span>
+      <span class="brand-tag">Global Pricing</span>
+    </div>
+    <div class="header-right">
+      <span class="by-line">by <a href="https://mrdsa.dev" target="_blank">Dewan</a></span>
+      <div class="status-pill">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">LOADING…</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-eyebrow">Netflix-based price parity</div>
+    <h1 class="hero-h">What should your product cost <em>around the world?</em></h1>
+    <p class="hero-sub">Enter your USD price — get local prices in every Netflix market, derived from Netflix's own pricing ratios, not live exchange rates.</p>
+  </div>
+
+  <div class="controls-section">
+
+    <div class="controls-row">
+      <div class="field">
+        <span class="field-label">Your price in USD</span>
+        <input type="number" class="ctrl-h" id="priceInput" placeholder="17.99" min="0" step="0.01"
+          onkeydown="if(event.key==='Enter') calculate()">
+      </div>
+
+      <div class="field">
+        <span class="field-label">
+          Reference plan
+          <span class="tip" title="The Netflix plan tier used to derive each country's local-to-USD ratio. Auto selects the highest available tier per country.">?</span>
+        </span>
+        <select class="ctrl-h" id="planSelect">
+          <option value="auto">Auto — best available</option>
+          <option value="premium">Premium</option>
+          <option value="standard">Standard</option>
+          <option value="standard_with_ads">Standard w/ Ads</option>
+          <option value="basic">Basic</option>
+          <option value="basic_with_ads">Basic w/ Ads</option>
+          <option value="mobile">Mobile</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Sort by</span>
+        <select class="ctrl-h" id="sortSelect" onchange="renderTable()">
+          <option value="country">Country A–Z</option>
+          <option value="ratio_asc">Ratio: Low → High</option>
+          <option value="ratio_desc">Ratio: High → Low</option>
+          <option value="price_asc">Local Price: Low → High</option>
+          <option value="price_desc">Local Price: High → Low</option>
+          <option value="discount">Biggest Discount</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <span class="field-label">
+          Rounding
+          <span class="tip" title="Charm pricing rounds down to psychological price points like $9.99, $14.99, ¥499, etc.">?</span>
+        </span>
+        <select class="ctrl-h" id="roundSelect" onchange="if(tableRows.length) calculate()">
+          <option value="none">None — exact</option>
+          <option value="charm99">.99 / X9 charm</option>
+        </select>
+      </div>
+
+      <button class="btn-calc ctrl-h" onclick="calculate()">Calculate ▶</button>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat">
+        <span class="stat-label">Markets</span>
+        <span class="stat-val red" id="statCountries">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Your USD Price</span>
+        <span class="stat-val" id="statUSD">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Lowest Market</span>
+        <span class="stat-val green" id="statLowest">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Highest Market</span>
+        <span class="stat-val" id="statHighest">—</span>
+      </div>
+    </div>
+
+    <div class="formula-strip">
+      <span class="formula-label">How it works</span>
+      <div class="formula-body">
+        <code>ratio = local plan price ÷ US plan price</code>
+        <span class="arr">→</span>
+        <code>local price = your USD × ratio</code>
+        <span class="arr">→</span>
+        <span>e.g. India Standard ₹499 ÷ $17.99 = 27.7× &nbsp;→&nbsp; $17.99 input = <strong style="color:var(--text)">₹499</strong></span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="results">
+
+    <div class="results-header" id="resultsHeader" style="display:none;">
+      <div class="results-left">
+        <div class="search-box">
+          <span class="s-ico">⌕</span>
+          <input type="text" id="searchInput" placeholder="Search country or currency…" oninput="renderTable()">
+        </div>
+        <span class="count-tag" id="resultCount"></span>
+      </div>
+      <div class="export-bar">
+        <span class="export-label">↓ Export</span>
+        <button class="exp-btn" onclick="dl('csv')">
+          <span class="eico">📄</span>
+          <div class="exp-inner"><span class="etitle">CSV</span><span class="esub">All fields</span></div>
+        </button>
+        <button class="exp-btn" onclick="dl('json')">
+          <span class="eico">{}</span>
+          <div class="exp-inner"><span class="etitle">JSON</span><span class="esub">API-ready</span></div>
+        </button>
+        <button class="exp-btn" onclick="goAppStore()" style="border-color:var(--bdr);">
+          <span class="eico">⬡</span>
+          <div class="exp-inner"><span class="etitle">App Store Connect</span><span class="esub">Push via API</span></div>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrap" id="tableWrap">
+      <div class="state-box">
+        <div class="spinner"></div>
+        <span class="state-txt">FETCHING NETFLIX DATA…</span>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <div>
+      <div class="foot-brand"><em>P</em>arity</div>
+      <div class="foot-note">
+        Made by <a href="https://mrdsa.dev" target="_blank">Dewan</a>
+        &nbsp;·&nbsp; Prices derived from Netflix ratios, not live FX<br>
+        Formula: country local plan price ÷ US plan price (same tier)
+      </div>
+    </div>
+    <div class="foot-right">
+      Data: <a href="https://github.com/tompec/netflix-prices" target="_blank">tompec/netflix-prices</a><br>
+      Not affiliated with Netflix Inc.
+    </div>
+  </footer>
+
+</div>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>

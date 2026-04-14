@@ -2,7 +2,7 @@
 
 A browser-based tool that calculates locally-adjusted prices for your product across every Netflix market, derived from Netflix's own pricing ratios.
 
-**Live:** [mrdsa.dev/parity](https://mrdsa.dev/parity)
+**Live:** [parity-pricing.web.app](https://parity-pricing.web.app)
 
 ## What it does
 
